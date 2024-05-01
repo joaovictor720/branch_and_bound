@@ -34,8 +34,8 @@ def read_file(filename):
   num_var = int(aux[0])
   num_rest = int(aux[1])
 
-  # Define x como variáveis continuas restritas entre 0 e 1
-  x = [model.add_var(var_type=CONTINUOUS, lb=0,ub=1, name=f"x_{i}") for i in range(num_var)]
+  # Definindo as variáveis como contínuas e restritas entre 0 e 1
+  x = [model.add_var(var_type=CONTINUOUS, lb=0, ub=1, name=f"x_{i}") for i in range(num_var)]
 
   # Lendo os coeficientes da função objetivo
   aux = model_file.readline().strip().split()
@@ -54,62 +54,69 @@ def read_file(filename):
 
   return model
 
-root = read_file(argv[1])
+def branch_and_bound(root):
 
-problem_queue = queue.Queue()
-problem_queue.put(root)
-best_int_solution = None
+  # Fazendo busca em profundidade com uma fila
+  problem_queue = queue.Queue()
+  problem_queue.put(root)
+  best_int_solution = None
 
-while True:
+  while True:
 
-  if problem_queue.empty():
-    break
+    # Finalizando o loop após percorrer todas os subproblemas necessários
+    if problem_queue.empty():
+      break
 
-  # Retirando o próximo da fila
-  current_problem = problem_queue.get()
+    # Retirando o próximo subproblema da fila
+    current_problem = problem_queue.get()
 
-  # Resolvendo o subproblema
-  is_feasible = solve(current_problem)
+    # Resolvendo o subproblema
+    is_feasible = solve(current_problem)
 
-  # Podando por inviabilidade
-  if not is_feasible:
-    continue
+    # Podando por inviabilidade
+    if not is_feasible:
+      continue
 
-  # Inicializando as variáveis auxiliares
-  worst_var_index = None
-  smallest_distance = float('inf')
-  current_var_index = 0
+    # Inicializando as variáveis auxiliares
+    worst_var_index = None
+    smallest_distance = float('inf')
+    current_var_index = 0
 
-  # Pegando a variável mais distante de ser binária de todas
-  for v in current_problem.vars:
-    distance = abs(v.x - 0.5)
-    if distance < smallest_distance:
-      smallest_distance = distance
-      worst_var_index = current_var_index
-    current_var_index = current_var_index+1
+    # Obtendo a variável mais distante de ser binária (pior de todas)
+    for v in current_problem.vars:
+      distance = abs(v.x - 0.5)
+      if distance < smallest_distance:
+        smallest_distance = distance
+        worst_var_index = current_var_index
+      current_var_index = current_var_index+1
 
-  # Verificando se a solução atual é inteira
-  if smallest_distance == 0.5:
-    # Atualizando a melhor solução inteira, caso o problema atual seja melhor que a melhor
-    if best_int_solution == None:
-      best_int_solution = current_problem
-    elif best_int_solution.objective_value < current_problem.objective_value:
-      best_int_solution = current_problem
-    continue # Podando por achar uma solução inteira
-  elif best_int_solution != None:
-    if best_int_solution.objective_value > current_problem.objective_value:
-      continue # Podando por achar uma solução pior do que a inteira atual
+    # Verificando se a solução atual é inteira
+    if smallest_distance == 0.5:
+      # Atualizando a melhor solução inteira, caso seja possível
+      if best_int_solution == None:
+        best_int_solution = current_problem
+      elif best_int_solution.objective_value < current_problem.objective_value:
+        best_int_solution = current_problem
+      continue # Podando por achar uma solução inteira
+    elif best_int_solution != None:
+      if best_int_solution.objective_value > current_problem.objective_value:
+        continue # Podando por achar uma solução pior do que a melhor inteira atual
 
-  # Ramificando em torno da pior variável (menos binária)
-  child1 = current_problem.copy()
-  child2 = current_problem.copy()
+    # Ramificando em torno da pior variável (menos binária)
+    child1 = current_problem.copy()
+    child2 = current_problem.copy()
+    
+    child1 += child1.vars[worst_var_index] == 0
+    child2 += child2.vars[worst_var_index] == 1
+
+    problem_queue.put(child1)
+    problem_queue.put(child2)
   
-  child1 += child1.vars[worst_var_index] == 0
-  child2 += child2.vars[worst_var_index] == 1
+  return best_int_solution
 
-  problem_queue.put(child1)
-  problem_queue.put(child2)
+
+problem = read_file(argv[1])
+best_solution = branch_and_bound(problem)
 
 print("Resultado final")
-
-print_model(best_int_solution)
+print_model(best_solution)
