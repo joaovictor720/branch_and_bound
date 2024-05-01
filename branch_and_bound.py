@@ -1,34 +1,32 @@
 from sys import argv
 from mip import *
 import queue
-import math
 
-
-# resolve o modelo e mostra os valores das variáveis
+# Resolve o modelo e mostra os valores das variáveis
 def solve(model):
   status = model.optimize()
 
   if status != OptimizationStatus.OPTIMAL:
     return False
 
-  print("Status = ", status)
-  print(f"Solution value  = {model.objective_value:.2f}\n")
-  
+  return True
+
+# Exibe os valores do modelo
+def print_model(model):
+  print(f"Solution value = {model.objective_value:.2f}\n")
   print("Solution:")
   for v in model.vars:
       print(f"{v.name} = {v.x:.2f}")
 
-  return True
-
-
-# salva modelo em arquivo lp, e mostra o conteúdo
+# Salva modelo em arquivo lp, e mostra o conteúdo
 def save(model, filename):
   model.write(filename) # salva modelo em arquivo
   with open(filename, "r") as f: # lê e exibe conteúdo do arquivo
     print(f.read())
 
-def readFile():
-  model_file = open(argv[1], "r")
+# Lê o arquivo
+def read_file(filename):
+  model_file = open(filename, "r")
   model = Model(sense=MAXIMIZE, solver_name=CBC)
 
   # Lendo as dimensões do modelo
@@ -56,60 +54,62 @@ def readFile():
 
   return model
 
+root = read_file(argv[1])
 
-modelFather = readFile()
-#save(modelFather, "teste.lp")
-#solve(modelFather)
-
-model_queue = queue.Queue()
-model_queue.put(modelFather)
-bestSolution = None
+problem_queue = queue.Queue()
+problem_queue.put(root)
+best_int_solution = None
 
 while True:
 
-  if model_queue.empty():
+  if problem_queue.empty():
     break
-  # Retira o proximo da fila
-  model = model_queue.get()
 
-  # Resolve
-  if solve(model) == False:
+  # Retirando o próximo da fila
+  current_problem = problem_queue.get()
+
+  # Resolvendo o subproblema
+  is_feasible = solve(current_problem)
+
+  # Podando por inviabilidade
+  if not is_feasible:
     continue
 
-  closer05value = None
-  minDistance = float('inf')
-  i = 0
+  # Inicializando as variáveis auxiliares
+  worst_var_index = None
+  smallest_distance = float('inf')
+  current_var_index = 0
 
-  for v in model.vars:
+  # Pegando a variável mais distante de ser binária de todas
+  for v in current_problem.vars:
     distance = abs(v.x - 0.5)
-    if distance < minDistance:
-      minDistance = distance
-      closer05value = i
-    i = i+1
+    if distance < smallest_distance:
+      smallest_distance = distance
+      worst_var_index = current_var_index
+    current_var_index = current_var_index+1
 
-  if math.isclose(minDistance, 0.5, rel_tol=1e-9, abs_tol=0.0):
-    print(model.objective_value)
-    print("O programa está esperando por sua entrada...")
-    entrada_usuario = input("Digite algo e pressione Enter para continuar: ")
-    if bestSolution == None:
-      bestSolution = model
-    elif bestSolution.objective_value < model.objective_value:
-      bestSolution = model
-    else:
-      continue
-  elif bestSolution != None:
-    if bestSolution.objective_value > model.objective_value:
-      continue
-  else:
-    child2 = model.copy()
-    child2 += child2.vars[closer05value] == 1
-    
-    model += model.vars[closer05value] == 0
+  # Verificando se a solução atual é inteira
+  if smallest_distance == 0.5:
+    # Atualizando a melhor solução inteira, caso o problema atual seja melhor que a melhor
+    if best_int_solution == None:
+      best_int_solution = current_problem
+    elif best_int_solution.objective_value < current_problem.objective_value:
+      best_int_solution = current_problem
+    continue # Podando por achar uma solução inteira
+  elif best_int_solution != None:
+    if best_int_solution.objective_value > current_problem.objective_value:
+      continue # Podando por achar uma solução pior do que a inteira atual
 
-    model_queue.put(model)
-    model_queue.put(child2)
+  # Ramificando em torno da pior variável (menos binária)
+  child1 = current_problem.copy()
+  child2 = current_problem.copy()
+  
+  child1 += child1.vars[worst_var_index] == 0
+  child2 += child2.vars[worst_var_index] == 1
 
+  problem_queue.put(child1)
+  problem_queue.put(child2)
 
 print("Resultado final")
 
-solve(bestSolution)
+print_model(best_int_solution)
