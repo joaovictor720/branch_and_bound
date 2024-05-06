@@ -1,3 +1,7 @@
+# Autores:
+# João Victor Silva Bezerra Nascimento - 2020000760
+# André Vitor Oliveira Brito - 20210066943
+
 from sys import argv
 from mip import *
 import queue
@@ -34,7 +38,7 @@ def read_file(filename):
   num_var = int(aux[0])
   num_rest = int(aux[1])
 
-  # Definindo as variáveis como contínuas e restritas entre 0 e 1
+  # Definindo as variáveis como contínuas e restritas de 0 a 1
   x = [model.add_var(var_type=CONTINUOUS, lb=0, ub=1, name=f"x_{i}") for i in range(num_var)]
 
   # Lendo os coeficientes da função objetivo
