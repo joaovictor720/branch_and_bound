@@ -38,19 +38,19 @@ def read_file(filename):
   x = [model.add_var(var_type=CONTINUOUS, lb=0, ub=1, name=f"x_{i}") for i in range(num_var)]
 
   # Lendo os coeficientes da função objetivo
-  aux = model_file.readline().strip().split()
+  coefficients = model_file.readline().strip().split()
   objective = 0
-  for i in range(len(aux)):
-    objective += int(aux[i]) * x[i]
+  for i in range(len(coefficients)):
+    objective += int(coefficients[i]) * x[i]
   model.objective = objective
 
   # Lendo os coeficientes das restrições
   for i in range(num_rest):
-    aux = model_file.readline().strip().split()
+    coefficients = model_file.readline().strip().split()
     lhs = 0
-    for j in range(len(aux)-1):
-      lhs += int(aux[j]) * x[j]
-    model += lhs <= int(aux[len(aux)-1])
+    for j in range(len(coefficients)-1):
+      lhs += int(coefficients[j]) * x[j]
+    model += lhs <= int(coefficients[len(coefficients)-1])
 
   return model
 
@@ -84,7 +84,7 @@ def branch_and_bound(root):
 
     # Obtendo a variável mais distante de ser binária (pior de todas)
     for v in current_problem.vars:
-      distance = abs(v.x - 0.5)
+      distance = abs(v.x - 0.5) # Distância indica o quão distante de ser binária está a variável
       if distance < smallest_distance:
         smallest_distance = distance
         worst_var_index = current_var_index
