@@ -60,7 +60,7 @@ def read_file(filename):
 
 def branch_and_bound(root):
 
-  # Fazendo busca em profundidade com uma fila
+  # Fazendo busca em largura com uma fila
   problem_queue = queue.Queue()
   problem_queue.put(root)
   best_int_solution = None
